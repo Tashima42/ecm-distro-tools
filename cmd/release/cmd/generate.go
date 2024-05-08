@@ -24,6 +24,7 @@ var (
 	artifactsIndexWriteToPath      *string
 	concurrencyLimit               *int
 	rancherMissingImagesJSONOutput *bool
+	rancherRCDroneBuildNumber      *string
 )
 
 // generateCmd represents the generate command
@@ -140,6 +141,29 @@ var rancherGenerateMissingImagesListSubCmd = &cobra.Command{
 	},
 }
 
+var rancherGenerateRCAnnouncementSubCmd = &cobra.Command{
+	Use:   "rc-announcement [version]",
+	Short: "Generate an RC Announcement",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if len(args) < 1 {
+			return errors.New("expected at least one argument: [version]")
+		}
+		version := args[0]
+		rancherRelease, found := rootConfig.Rancher.Versions[version]
+		if !found {
+			return errors.New("verify your config file, version not found: " + version)
+		}
+		ctx := context.Background()
+		ghClient := repository.NewGithub(ctx, rootConfig.Auth.GithubToken)
+		announcement, err := rancher.GenerateRancherRCAnnouncement(ctx, ghClient, rancherRelease, version, *rancherRCDroneBuildNumber)
+		if err != nil {
+			return errors.New("failed to generate rc announcement: " + err.Error())
+		}
+		fmt.Println(announcement)
+		return nil
+	},
+}
+
 func init() {
 	rootCmd.AddCommand(generateCmd)
 
@@ -148,6 +172,7 @@ func init() {
 	rke2GenerateSubCmd.AddCommand(rke2GenerateReleaseNotesSubCmd)
 	rancherGenerateSubCmd.AddCommand(rancherGenerateArtifactsIndexSubCmd)
 	rancherGenerateSubCmd.AddCommand(rancherGenerateMissingImagesListSubCmd)
+	rancherGenerateSubCmd.AddCommand(rancherGenerateRCAnnouncementSubCmd)
 
 	generateCmd.AddCommand(k3sGenerateSubCmd)
 	generateCmd.AddCommand(rke2GenerateSubCmd)
@@ -187,4 +212,11 @@ func init() {
 	// rancher generate-missing-images-list
 	concurrencyLimit = rancherGenerateMissingImagesListSubCmd.Flags().IntP("concurrency-limit", "c", 3, "Concurrency Limit")
 	rancherMissingImagesJSONOutput = rancherGenerateMissingImagesListSubCmd.Flags().BoolP("json", "j", false, "JSON Output")
+
+	// rancher rc-announcement
+	rancherRCDroneBuildNumber = rancherGenerateRCAnnouncementSubCmd.Flags().StringP("drone-build", "b", "", "Drone Build Number")
+	if err := rancherGenerateRCAnnouncementSubCmd.MarkFlagRequired("drone-build"); err != nil {
+		fmt.Println(err.Error())
+		os.Exit(1)
+	}
 }

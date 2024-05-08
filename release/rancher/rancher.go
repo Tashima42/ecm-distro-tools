@@ -25,7 +25,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/google/go-github/v39/github"
-	"github.com/rancher/ecm-distro-tools/cmd/release/config"
 	ecmConfig "github.com/rancher/ecm-distro-tools/cmd/release/config"
 	ecmHTTP "github.com/rancher/ecm-distro-tools/http"
 	"github.com/rancher/ecm-distro-tools/release"
@@ -37,6 +36,7 @@ import (
 const (
 	rancherOrg               = "rancher"
 	rancherRepo              = rancherOrg
+	releaseTypeRC            = "rc"
 	rancherImagesBaseURL     = "https://github.com/rancher/rancher/releases/download/"
 	rancherImagesFileName    = "/rancher-images.txt"
 	rancherHelmRepositoryURL = "https://releases.rancher.com/server-charts/latest/index.yaml"
@@ -59,6 +59,15 @@ type RancherRCDeps struct {
 	MinFilesWithRC []RancherRCDepsLine `json:"minFilesWithRc"`
 	ChartsWithDev  []RancherRCDepsLine `json:"chartsWithDev"`
 	KDMWithDev     []RancherRCDepsLine `json:"kdmWithDev"`
+}
+
+type RCAnnouncement struct {
+	Version          string
+	LastRC           string
+	Commit           string
+	DroneBuildNumber string
+	ComponentsWithRC []string
+	ImagesWithRC     []string
 }
 
 type ListBucketResult struct {
@@ -487,7 +496,7 @@ func readStringChan(ch <-chan string) []string {
 	return data
 }
 
-func UploadRancherArtifacts(ctx context.Context, ghClient *github.Client, s3Uploader *manager.Uploader, rancherRelease *config.RancherRelease, releaseTag string) error {
+func UploadRancherArtifacts(ctx context.Context, ghClient *github.Client, s3Uploader *manager.Uploader, rancherRelease *ecmConfig.RancherRelease, releaseTag string) error {
 	fmt.Println("validating release tag: " + releaseTag)
 	if !semver.IsValid(releaseTag) {
 		return errors.New("the tag isn't a valid semver: " + releaseTag)
@@ -538,6 +547,66 @@ func UploadRancherArtifacts(ctx context.Context, ghClient *github.Client, s3Uplo
 		}
 	}
 	return nil
+}
+
+func GenerateRancherRCAnnouncement(ctx context.Context, ghClient *github.Client, r ecmConfig.RancherRelease, version, droneBuildNumber string) (string, error) {
+	if !semver.IsValid(version) {
+		return "", errors.New("the tag isn't a valid semver: " + version)
+	}
+	lastVersion, err := release.LatestPreRelease(ctx, ghClient, r.RancherRepoOwner, rancherRepo, version, releaseTypeRC)
+	if err != nil {
+		return "", err
+	}
+	currentRCNumber := 1
+	lastRCNumber := 1
+	if lastVersion != nil {
+		trimmedRCNumber := strings.TrimPrefix(*lastVersion, version+"-"+releaseTypeRC)
+		currentRCNumber, err = strconv.Atoi(trimmedRCNumber)
+		if err != nil {
+			return "", errors.New("failed to parse trimmed latest version number: " + err.Error())
+		}
+		lastRCNumber = currentRCNumber - 1
+	}
+	currentRC := fmt.Sprintf("%s-%s%d", version, releaseTypeRC, currentRCNumber)
+	lastRC := fmt.Sprintf("%s-%s%d", version, releaseTypeRC, lastRCNumber)
+	// ghClient.Tag
+	release, _, err := ghClient.Repositories.GetReleaseByTag(ctx, r.RancherRepoOwner, rancherRepo, currentRC)
+	if err != nil {
+		return "", err
+	}
+	if release.TargetCommitish == nil {
+		return "", errors.New("release commit sha is nil")
+	}
+	rcDeps, err := CheckRancherRCDeps(ctx, r.RancherRepoOwner, currentRC)
+	if err != nil {
+		return "", errors.New("failed to get rancher rc deps: " + err.Error())
+	}
+	componentsWithRC := make([]string, len(rcDeps.FilesWithRC))
+	imagesWithRC := make([]string, len(rcDeps.RancherImages))
+	for _, component := range rcDeps.FilesWithRC {
+		componentsWithRC = append(componentsWithRC, component.Content)
+	}
+	for _, image := range rcDeps.RancherImages {
+		imagesWithRC = append(imagesWithRC, image.Content)
+	}
+	rcAnnouncement := RCAnnouncement{
+		Version:          currentRC,
+		LastRC:           lastRC,
+		Commit:           *release.TargetCommitish,
+		DroneBuildNumber: droneBuildNumber,
+		ComponentsWithRC: componentsWithRC,
+		ImagesWithRC:     imagesWithRC,
+	}
+	fmt.Printf("%+v\n\n", rcAnnouncement)
+	return rcAnnouncement.ToString()
+}
+
+func (r *RCAnnouncement) ToString() (string, error) {
+	tmpl := template.New("rancher-rc-announcement")
+	tmpl = template.Must(tmpl.Parse(rcAnnouncementTemplate))
+	buff := bytes.NewBuffer(nil)
+	err := tmpl.ExecuteTemplate(buff, "rcAnnouncement", r)
+	return buff.String(), err
 }
 
 const artifactsIndexTempalte = `{{ define "release-artifacts-index" }}
@@ -626,3 +695,16 @@ const checkRancherRCDepsTemplate = `{{- define "componentsFile" -}}
 * {{ .Content }} ({{ .File }}, line {{ .Line }})
 {{- end}}
 {{ end }}`
+
+const rcAnnouncementTemplate = `{{- define "rcAnnouncement" -}}
+[{{ .Version }}](https://github.com/rancher/rancher/releases/tag/{{ .Version }}) is available based on this commit [(link)](https://github.com/rancher/rancher/commit/{{ .Commit }})!
+	Link of commits between last 2 RCs. [(link)](https://github.com/rancher/rancher/compare/{{ .LastRC }}...{{ .Version }})
+	Completed drone build [(link)](https://drone-publish.rancher.io/rancher/rancher/{{ .DroneBuildNumber }}).
+	Components with -rc:
+		{{ range .ComponentsWithRC }}
+		* {{ . }}
+		{{ end }}
+	Images with -rc:
+		{{ range .ImagesWithRC }}
+		* {{ . }}
+		{{ end }}{{ end }}`
