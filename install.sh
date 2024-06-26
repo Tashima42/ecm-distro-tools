@@ -86,7 +86,7 @@ download_tarball() {
 # install_binaries installs the binaries from the downloaded tar.
 install_binaries() {
     cd "${TMP_DIR}"
-    wget "${REPO_RELEASE_URL}/download/${RELEASE_VERSION}/release-linux-amd64
+    wget "${REPO_RELEASE_URL}/download/${RELEASE_VERSION}/release-linux-amd64"
     mkdir -p "${INSTALL_DIR}"
 
     for f in * ; do
