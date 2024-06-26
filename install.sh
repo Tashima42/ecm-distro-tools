@@ -72,8 +72,6 @@ install_binaries() {
     setup_tmp
     setup_arch
 
-    verify_downloader curl || verify_downloader wget || fatal "error: cannot find curl or wget"
-    # download_tarball
     install_binaries
 
     printf "Run command to access tools:\n\nPATH=%s:%s\n\n" "${PATH}" "${INSTALL_DIR}"
