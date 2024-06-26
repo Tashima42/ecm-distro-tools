@@ -33,11 +33,12 @@ jobs:
         run: |
           mkdir -p ~/.ecm-distro-tools
           release config gen
-      - name: Generate Linux Digests
+      - name: Generate Digests
         run: |
           mkdir -p dist
           release generate rancher docker-images-digests \
             --linux-images-url "https://github.com/${{ github.event.inputs.rancher_repo_owner }}/rancher/releases/download/${{ github.event.inputs.tag }}/rancher-images.txt" \
+            --windows-images-url "https://github.com/${{ github.event.inputs.rancher_repo_owner }}/rancher/releases/download/${{ github.event.inputs.tag }}/rancher-windows-images.txt" \
             --output-dir /tmp/dist \
             --registry "${{ github.event.inputs.base_registry }}"
       - name: Upload Artifacts
