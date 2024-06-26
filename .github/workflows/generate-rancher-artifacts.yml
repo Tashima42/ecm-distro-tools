@@ -35,7 +35,7 @@ jobs:
           release config gen
       - name: Generate Digests
         run: |
-          mkdir -p dist
+          mkdir -p /tmp/dist
           release generate rancher docker-images-digests \
             --linux-images-url "https://github.com/${{ github.event.inputs.rancher_repo_owner }}/rancher/releases/download/${{ github.event.inputs.tag }}/rancher-images.txt" \
             --windows-images-url "https://github.com/${{ github.event.inputs.rancher_repo_owner }}/rancher/releases/download/${{ github.event.inputs.tag }}/rancher-windows-images.txt" \
