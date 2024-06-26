@@ -102,6 +102,25 @@ type ListBucketResult struct {
 	} `xml:"Contents"`
 }
 
+type DockerImageManifests struct {
+	SchemaVersion int              `json:"schemaVersion"`
+	MediaType     string           `json:"mediaType"`
+	Manifests     []dockerManifest `json:"manifests"`
+}
+
+type dockerManifest struct {
+	MediaType string                 `json:"mediaType"`
+	Size      int                    `json:"size"`
+	Digest    string                 `json:"digest"`
+	Platform  dockerManifestPlatform `json:"platform"`
+}
+
+type dockerManifestPlatform struct {
+	Architecture string `json:"architecture"`
+	Os           string `json:"os"`
+	OsVersion    string `json:"os.version"`
+}
+
 type ArtifactsIndexContent struct {
 	GA         ArtifactsIndexContentGroup `json:"ga"`
 	PreRelease ArtifactsIndexContentGroup `json:"preRelease"`
@@ -458,20 +477,45 @@ func GenerateMissingImagesList(version string, concurrencyLimit int, images []st
 	return missingImages, nil
 }
 
-func GenerateDockerImageDigests(outputFile, imagesFileURL, registry string) error {
-	slog.Info("getting images list from artifact: " + imagesFileURL)
-	imagesList, err := artifactImageList(imagesFileURL, registry)
+func GenerateDockerImageDigests(outputDir, imagesFileURL, windowsImagesFileURL, registry string) error {
+	if err := generateWindowsDockerImagesDigests(outputDir, windowsImagesFileURL, registry); err != nil {
+		return err
+	}
+	return generateLinuxDockerImagesDigests(outputDir, imagesFileURL, registry)
+}
+
+func generateWindowsDockerImagesDigests(outputDir, imagesFileURL, registry string) error {
+	imageDigests, err := dockerImagesDigests(imagesFileURL, registry)
 	if err != nil {
 		return err
+	}
+	return createAssetFile(filepath.Join(outputDir, "rancher-images-digests-windows-ltsc2022.txt"), imageDigests["windows-amd64"])
+}
+
+func generateLinuxDockerImagesDigests(outputDir, imagesFileURL, registry string) error {
+	imageDigests, err := dockerImagesDigests(imagesFileURL, registry)
+	if err != nil {
+		return err
+	}
+	if err := createAssetFile(filepath.Join(outputDir, "rancher-images-digests-linux-amd64.txt"), imageDigests["linux-amd64"]); err != nil {
+		return err
+	}
+	return createAssetFile(filepath.Join(outputDir, "rancher-images-digests-linux-arm64.txt"), imageDigests["linux-arm64"])
+}
+
+func dockerImagesDigests(imagesFileURL, registry string) (map[string]imageDigest, error) {
+	imagesList, err := artifactImageList(imagesFileURL, registry)
+	if err != nil {
+		return nil, err
 	}
 
 	rgInfo, ok := registriesInfo[registry]
 	if !ok {
-		return errors.New("registry must be one of the following: 'docker.io', 'registry.rancher.com' or 'stgregistry.suse.com'")
+		return nil, errors.New("registry must be one of the following: 'docker.io', 'registry.rancher.com' or 'stgregistry.suse.com'")
 	}
-
-	var digests = make(imageDigest)
 	var repositoryAuths = make(map[string]string)
+
+	imagesDigests := make(map[string]imageDigest)
 
 	for _, imageAndVersion := range imagesList {
 		if imageAndVersion == "" || imageAndVersion == " " {
@@ -479,7 +523,7 @@ func GenerateDockerImageDigests(outputFile, imagesFileURL, registry string) erro
 		}
 		slog.Info("image: " + imageAndVersion)
 		if !strings.Contains(imageAndVersion, ":") {
-			return errors.New("malformed image name: , missing ':'")
+			return nil, errors.New("malformed image name: , missing ':'")
 		}
 		splitImage := strings.Split(imageAndVersion, ":")
 		image := splitImage[0]
@@ -488,18 +532,23 @@ func GenerateDockerImageDigests(outputFile, imagesFileURL, registry string) erro
 		if _, ok := repositoryAuths[image]; !ok {
 			auth, err := registryAuth(rgInfo.AuthURL, rgInfo.Service, image)
 			if err != nil {
-				return err
+				return nil, err
 			}
 			repositoryAuths[image] = auth
 		}
-		digest, statusCode, err := dockerImageDigest(rgInfo.BaseURL, image, imageVersion, repositoryAuths[image])
+		platformDigest, statusCode, err := dockerImageDigests(rgInfo.BaseURL, image, imageVersion, repositoryAuths[image])
 		slog.Info("status code: " + strconv.Itoa(statusCode))
 		if err != nil {
-			return err
+			return nil, err
 		}
-		digests[imageAndVersion] = digest
+		for platform, digest := range platformDigest {
+			if _, ok := imagesDigests[platform]; !ok {
+				imagesDigests[platform] = make(imageDigest)
+			}
+			imagesDigests[platform][imageAndVersion] = digest
+		}
 	}
-	return createAssetFile(outputFile, digests)
+	return imagesDigests, nil
 }
 
 func createAssetFile(outputFile string, contents fmt.Stringer) error {
@@ -576,11 +625,11 @@ func getLinesFromReader(body io.Reader) ([]string, error) {
 	return strings.Split(string(lines), "\n"), nil
 }
 
-func dockerImageDigest(registryBaseURL, img, imgVersion, auth string) (string, int, error) {
+func dockerImageDigests(registryBaseURL, img, imgVersion, auth string) (map[string]string, int, error) {
 	httpClient := ecmHTTP.NewClient(time.Second * 5)
 	req, err := http.NewRequest("GET", registryBaseURL+"/v2/"+img+"/manifests/"+imgVersion, nil)
 	if err != nil {
-		return "", 0, err
+		return nil, 0, err
 	}
 	req.Header.Add("Accept", "application/vnd.oci.image.index.v1+json")
 	req.Header.Add("Accept", "application/vnd.oci.image.manifest.v1+json")
@@ -593,21 +642,33 @@ func dockerImageDigest(registryBaseURL, img, imgVersion, auth string) (string, i
 	req.Header.Add("Authorization", "Bearer "+auth)
 	res, err := httpClient.Do(req)
 	if err != nil {
-		return "", 0, err
+		return nil, 0, err
 	}
 	if res.StatusCode == http.StatusNotFound {
-		return "", res.StatusCode, nil
+		return nil, res.StatusCode, nil
 	}
-	dockerDigest := res.Header.Get("Docker-Content-Digest")
-	if dockerDigest == "" {
-		return "", res.StatusCode, errors.New("missing digest header")
+	var manifests DockerImageManifests
+	decoder := json.NewDecoder(res.Body)
+	if err := decoder.Decode(&manifests); err != nil {
+		return nil, 0, err
 	}
-	return dockerDigest, res.StatusCode, nil
+
+	platformManifest := make(map[string]string)
+
+	for _, m := range manifests.Manifests {
+		key := m.Platform.Os + "-" + m.Platform.Architecture
+		// if m.Platform.OsVersion != "" {
+		// 	key += "-" + m.Platform.OsVersion
+		// }
+		platformManifest[key] = m.Digest
+	}
+
+	return platformManifest, res.StatusCode, nil
 }
 
 func checkIfImageExists(registryBaseURL, img, imgVersion, auth string) (bool, error) {
 	log.Println("checking image: " + img + ":" + imgVersion)
-	_, statusCode, err := dockerImageDigest(registryBaseURL, img, imgVersion, auth)
+	_, statusCode, err := dockerImageDigests(registryBaseURL, img, imgVersion, auth)
 	if err != nil {
 		return false, err
 	}

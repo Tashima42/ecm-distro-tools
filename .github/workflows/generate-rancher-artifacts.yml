@@ -1,0 +1,52 @@
+name: Transfer Rancher artifacts to prime bucket
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        type: string
+        description: "e.g: v2.8.4"
+        required: true
+      base_registry:
+        type: choice
+        description: "registry where the images were first uploaded to"
+        options:
+          - "docker.io"
+          - "stgregistry.suse.com"
+          - "registry.rancher.com"
+        required: true
+      rancher_repo_owner:
+        type: string
+        description: "org that the rancher repo is located in"
+        default: "rancher"
+        required: false
+jobs:
+  digests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: setup ecm-distro-tools
+        run: |
+          OSs=linux ARCHS=amd64 make release
+          sudo chmod +x ./cmd/release/bin/release-linux-amd64
+          cp ./cmd/release/bin/release-linux-amd64 ~/.local/bin
+      - name: Create ecm config file 
+        run: |
+          mkdir -p ~/.ecm-distro-tools
+          release config gen
+      - name: Generate Linux Digests
+        run: |
+          mkdir -p dist
+          release generate rancher docker-images-digests \
+            --artifact-url "https://github.com/${{ github.event.inputs.rancher_repo_owner }}/rancher/releases/download/${{ github.event.inputs.tag }}/rancher-images.txt" \
+            --output-file ./dist/rancher-images-digests-linux-amd64.txt \
+            --registry "${{ github.event.inputs.base_registry }}"
+          cp ./dist/rancher-images-digests-linux-amd64.txt ./dist/rancher-images-digests-linux-arm64.txt
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: "digests"
+          path: ./dist
+          if-no-files-found: error
+          retention-days: 1
+          overwrite: false
