@@ -4,7 +4,7 @@ set -e
 
 TMP_DIR=""
 REPO_NAME="ecm-distro-tools"
-REPO_URL="https://github.com/rancher/${REPO_NAME}"
+REPO_URL="https://github.com/tashima42/${REPO_NAME}"
 REPO_RELEASE_URL="${REPO_URL}/releases"
 INSTALL_DIR="$HOME/.local/bin/ecm-distro-tools"
 SUFFIX=""
@@ -104,7 +104,7 @@ install_binaries() {
     fi
 
     if [ -z "$RELEASE_VERSION" ]; then 
-        RELEASE_VERSION=$(basename "$(curl -Ls -o /dev/null -w %\{url_effective\} https://github.com/rancher/ecm-distro-tools/releases/latest)")
+        RELEASE_VERSION=$(basename "$(curl -Ls -o /dev/null -w %\{url_effective\} https://github.com/tashima42/ecm-distro-tools/releases/latest)")
     fi
 
     echo "Installing ECM Distro Tools: ${RELEASE_VERSION}"
