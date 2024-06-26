@@ -37,15 +37,14 @@ jobs:
         run: |
           mkdir -p dist
           release generate rancher docker-images-digests \
-            --artifact-url "https://github.com/${{ github.event.inputs.rancher_repo_owner }}/rancher/releases/download/${{ github.event.inputs.tag }}/rancher-images.txt" \
-            --output-file ./dist/rancher-images-digests-linux-amd64.txt \
+            --linux-images-url "https://github.com/${{ github.event.inputs.rancher_repo_owner }}/rancher/releases/download/${{ github.event.inputs.tag }}/rancher-images.txt" \
+            --output-dir /tmp/dist \
             --registry "${{ github.event.inputs.base_registry }}"
-          cp ./dist/rancher-images-digests-linux-amd64.txt ./dist/rancher-images-digests-linux-arm64.txt
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: "digests"
-          path: ./dist
+          path: /tmp/dist
           if-no-files-found: error
           retention-days: 1
           overwrite: false
