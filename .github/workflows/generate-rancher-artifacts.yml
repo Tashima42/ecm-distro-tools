@@ -1,4 +1,4 @@
-name: Transfer Rancher artifacts to prime bucket
+name: Generate Images Digests
 on:
   workflow_dispatch:
     inputs:
@@ -29,15 +29,15 @@ jobs:
         run: |
           OSs=linux ARCHS=amd64 make release
           sudo chmod +x ./cmd/release/bin/release-linux-amd64
-          cp ./cmd/release/bin/release-linux-amd64 ~/.local/bin
+          cp ./cmd/release/bin/release-linux-amd64 /tmp/release
       - name: Create ecm config file 
         run: |
           mkdir -p ~/.ecm-distro-tools
-          release config gen
+          /tmp/release config gen
       - name: Generate Linux Digests
         run: |
           mkdir -p dist
-          release generate rancher docker-images-digests \
+          /tmp/release generate rancher docker-images-digests \
             --artifact-url "https://github.com/${{ github.event.inputs.rancher_repo_owner }}/rancher/releases/download/${{ github.event.inputs.tag }}/rancher-images.txt" \
             --output-file ./dist/rancher-images-digests-linux-amd64.txt \
             --registry "${{ github.event.inputs.base_registry }}"
