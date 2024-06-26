@@ -10,9 +10,9 @@ on:
         type: choice
         description: "registry where the images were first uploaded to"
         options:
+          - "registry.rancher.com"
           - "docker.io"
           - "stgregistry.suse.com"
-          - "registry.rancher.com"
         required: true
       rancher_repo_owner:
         type: string
@@ -22,7 +22,7 @@ on:
       prime_only:
         type: boolean
         description: "release is prime only"
-        default: false
+        default: true
         required: true
 jobs:
   digests:
