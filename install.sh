@@ -86,8 +86,7 @@ download_tarball() {
 # install_binaries installs the binaries from the downloaded tar.
 install_binaries() {
     cd "${TMP_DIR}"
-    # tar -xf "${TMP_DIR}/ecm-distro-tools.${SUFFIX}.tar.gz"
-    rm "${TMP_DIR}/ecm-distro-tools.${SUFFIX}.tar.gz"
+    wget "${REPO_RELEASE_URL}/download/${RELEASE_VERSION}/release-linux-amd64
     mkdir -p "${INSTALL_DIR}"
 
     for f in * ; do
@@ -111,11 +110,11 @@ install_binaries() {
 
     echo "Installing ECM Distro Tools: ${RELEASE_VERSION}"
 
-    setup_tmp
+    # setup_tmp
     setup_arch
 
     verify_downloader curl || verify_downloader wget || fatal "error: cannot find curl or wget"
-    download_tarball
+    # download_tarball
     install_binaries
 
     printf "Run command to access tools:\n\nPATH=%s:%s\n\n" "${PATH}" "${INSTALL_DIR}"
