@@ -46,6 +46,7 @@ setup_tmp() {
 install_binaries() {
     cd "${TMP_DIR}"
     wget "${REPO_RELEASE_URL}/download/${RELEASE_VERSION}/release-linux-amd64"
+    sudo chmod +x release-linux-amd64
     mkdir -p "${INSTALL_DIR}"
 
     for f in * ; do
