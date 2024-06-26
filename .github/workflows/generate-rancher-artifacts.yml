@@ -26,18 +26,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: setup ecm-distro-tools
-        run: |
-          OSs=linux ARCHS=amd64 make release
-          sudo chmod +x ./cmd/release/bin/release-linux-amd64
-          cp ./cmd/release/bin/release-linux-amd64 /tmp/release
+        uses: tashima42/ecm-distro-tools@v0.0.6
+        with:
+          version: v0.0.6
       - name: Create ecm config file 
         run: |
           mkdir -p ~/.ecm-distro-tools
-          /tmp/release config gen
+          release config gen
       - name: Generate Linux Digests
         run: |
           mkdir -p dist
-          /tmp/release generate rancher docker-images-digests \
+          release generate rancher docker-images-digests \
             --artifact-url "https://github.com/${{ github.event.inputs.rancher_repo_owner }}/rancher/releases/download/${{ github.event.inputs.tag }}/rancher-images.txt" \
             --output-file ./dist/rancher-images-digests-linux-amd64.txt \
             --registry "${{ github.event.inputs.base_registry }}"
