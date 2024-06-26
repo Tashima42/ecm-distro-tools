@@ -30,7 +30,9 @@ setup_arch() {
 
 # setup_tmp creates a temporary directory and cleans up when done.
 setup_tmp() {
-    TMP_DIR=$(mktemp -d -t ecm-distro-tools-install.XXXXXXXXXX)
+    rm -rf /tmp/ecm-distro-tools
+    mkdir -p /tmp/ecm-distro-tools
+    TMP_DIR=/tmp/ecm-distro-tools
     cleanup() {
         code=$?
         set +e
@@ -84,7 +86,7 @@ download_tarball() {
 # install_binaries installs the binaries from the downloaded tar.
 install_binaries() {
     cd "${TMP_DIR}"
-    tar -xf "${TMP_DIR}/ecm-distro-tools.${SUFFIX}.tar.gz"
+    # tar -xf "${TMP_DIR}/ecm-distro-tools.${SUFFIX}.tar.gz"
     rm "${TMP_DIR}/ecm-distro-tools.${SUFFIX}.tar.gz"
     mkdir -p "${INSTALL_DIR}"
 
