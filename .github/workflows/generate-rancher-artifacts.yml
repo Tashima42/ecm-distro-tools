@@ -19,6 +19,11 @@ on:
         description: "org that the rancher repo is located in"
         default: "rancher"
         required: false
+      prime_only:
+        type: boolean
+        description: "release is prime only"
+        default: false
+        required: true
 jobs:
   digests:
     runs-on: ubuntu-latest
@@ -35,10 +40,17 @@ jobs:
           release config gen
       - name: Generate Digests
         run: |
+          export LINUX_IMAGES_URL=https://github.com/${{ github.event.inputs.rancher_repo_owner }}/rancher/releases/download/${{ github.event.inputs.tag }}/rancher-images.txt
+          export WINDOWS_IMAGES_URL=https://github.com/${{ github.event.inputs.rancher_repo_owner }}/rancher/releases/download/${{ github.event.inputs.tag }}/rancher-windows-images.txt
+          if [[ ${{ github.event.inputs.prime_only }} = true ]]; then
+            export LINUX_IMAGES_URL=https://prime.ribs.rancher.io/rancher/${{ github.event.inputs.tag }}/rancher-images.txt
+            export WINDOWS_IMAGES_URL=https://prime.ribs.rancher.io/rancher/${{ github.event.inputs.tag }}/rancher-windows-images.txt
+          fi
+
           mkdir -p /tmp/dist
           release generate rancher docker-images-digests \
-            --linux-images-url "https://github.com/${{ github.event.inputs.rancher_repo_owner }}/rancher/releases/download/${{ github.event.inputs.tag }}/rancher-images.txt" \
-            --windows-images-url "https://github.com/${{ github.event.inputs.rancher_repo_owner }}/rancher/releases/download/${{ github.event.inputs.tag }}/rancher-windows-images.txt" \
+            --linux-images-url "$LINUX_IMAGES_URL" \
+            --windows-images-url "$WINDOWS_IMAGES_URL" \
             --output-dir /tmp/dist \
             --registry "${{ github.event.inputs.base_registry }}"
       - name: Upload Artifacts
