@@ -36,8 +36,7 @@ var viewConfigSubCmd = &cobra.Command{
 
 var editConfigSubCmd = &cobra.Command{
 	Use:   "edit",
-	Short: "Open the config file in your default editor",
-	Long:  ``,
+	Short: "Open the config file in your default editor based on the EDITOR environment variable or vi",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return config.OpenOnEditor(configFile)
 	},

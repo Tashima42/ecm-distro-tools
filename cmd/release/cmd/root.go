@@ -12,7 +12,6 @@ import (
 var (
 	debug          bool
 	dryRun         bool
-	ignoreValidate bool
 	rootConfig     *config.Config
 	verbose        bool
 	configFile     string
@@ -45,15 +44,16 @@ func init() {
 	rootCmd.PersistentFlags().BoolVarP(&debug, "debug", "D", false, "Debug")
 	rootCmd.PersistentFlags().BoolVarP(&dryRun, "dry-run", "R", false, "Dry Run")
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "V", false, "Verbose output")
-	rootCmd.PersistentFlags().BoolVarP(&ignoreValidate, "ignore-validate", "I", false, "Ignore the validate config step")
 	rootCmd.PersistentFlags().StringVarP(&configFile, "config-file", "c", "$HOME/.ecm-distro-tools/config.json", "Path for the config.json file")
 	rootCmd.PersistentFlags().StringVarP(&stringConfig, "config", "C", "", "JSON config string")
 }
 
 func initConfig() {
 	if len(os.Args) >= 2 {
-		if os.Args[1] == "config" && os.Args[2] == "gen" {
-			return
+		if os.Args[1] == "config" {
+			if os.Args[2] == "gen" || os.Args[2] == "edit"{
+				return
+			}
 		}
 	}
 	var conf *config.Config
@@ -75,11 +75,4 @@ func initConfig() {
 	}
 
 	rootConfig = conf
-
-	if !ignoreValidate {
-		if err := rootConfig.Validate(); err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-	}
 }

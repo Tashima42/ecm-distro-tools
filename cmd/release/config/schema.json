@@ -1,0 +1,136 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/rancher/ecm-distro-tools/refs/heads/master/cmd/release/config/schema.json",
+  "description": "JSON Schema for rancher/ecm-distro-tools release cli",
+  "type": "object",
+  "properties": {
+    "user": {
+      "type": "object",
+      "properties": {
+        "email": {
+          "type": "string"
+        },
+        "github_username": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "email",
+        "github_username"
+      ]
+    },
+    "k3s": {
+      "type": "object",
+      "properties": {
+        "versions": {
+          "type": "object",
+          "patternProperties": {
+            "/^[v]?(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/gm": {
+              "type": "object",
+              "properties": {
+                "old_k8s_version": { "$ref": "#/$defs/semver" },
+                "new_k8s_version": { "$ref": "#/$defs/semver" },
+                "old_k8s_client": { "$ref": "#/$defs/semver" },
+                "new_k8s_client": { "$ref": "#/$defs/semver" },
+                "old_suffix": { "type": "string" },
+                "new_suffix": { "type": "string" },
+                "release_branch": { "type": "string" },
+                "workspace": { "type": "string" },
+                "k3s_repo_owner": { "type": "string" },
+                "system_agent_installer_repo_owner": { "type": "string" },
+                "k8s_rancher_url": { "type": "string" },
+                "k3s_upstream_url": { "type": "string" },
+                "dry_run": { "type": "boolean" }
+              },
+              "required": [
+                "old_k8s_version",
+                "new_k8s_version",
+                "old_k8s_client",
+                "new_k8s_client",
+                "old_suffix",
+                "new_suffix",
+                "release_branch",
+                "workspace",
+                "dry_run"
+              ]
+            }
+          }
+        }
+      },
+      "required": [ "versions" ]
+    },
+    "rancher": {
+      "type": "object",
+      "properties": {
+        "versions": {
+          "type": "object",
+          "patternProperties": {
+            "/^[v]?(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/gm": {
+              "type": "object",
+              "properties": {
+                "release_branch": { "type": "string" },
+                "rancher_repo_owner": { "type": "string" }
+              },
+              "required": [ "release_branch" ]
+            }
+          }
+        }
+      },
+      "required": [ "versions" ]
+    },
+    "rke2": {
+      "type": "object",
+      "properties": {
+        "versions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/semver" },
+          "uniqueItems": true
+        }
+      },
+      "required": [ "versions" ]
+    },
+    "charts": {
+      "type": "object",
+      "properties": {
+        "workspace": { "type": "string" },
+        "charts_repo_url": { "type": "string" },
+        "charts_fork_url": { "type": "string" },
+        "branch_lines": {
+          "type": "array",
+          "items": { "type": "string" },
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "workspace",
+        "charts_fork_url",
+        "branch_lines"
+      ]
+    },
+    "auth": {
+      "type": "object",
+      "properties": {
+        "github_token": { "type": "string" },
+        "ssh_key_path": { "type": "string" },
+        "aws_access_key_id": { "type": "string" },
+        "aws_secret_access_key": { "type": "string" },
+        "aws_session_token": { "type": "string" },
+        "aws_default_region": { "type": "string" }
+      },
+      "required": [
+        "github_token",
+        "ssh_key_path"
+      ]
+    }
+  },
+  "required": [
+    "user",
+    "auth"
+  ],
+  "$defs": {
+    "semver": {
+      "type": "string",
+      "pattern": "/^[v]?(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/gm"
+    }
+  }
+}

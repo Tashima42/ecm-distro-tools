@@ -7,32 +7,30 @@ import (
 	"os/exec"
 	"path/filepath"
 	"text/template"
-
-	"github.com/go-playground/validator/v10"
 )
 
 // K3sRelease
 type K3sRelease struct {
-	OldK8sVersion                 string `json:"old_k8s_version" validate:"required"`
-	NewK8sVersion                 string `json:"new_k8s_version" validate:"required"`
-	OldK8sClient                  string `json:"old_k8s_client" validate:"required"`
-	NewK8sClient                  string `json:"new_k8s_client" validate:"required"`
-	OldSuffix                     string `json:"old_suffix" validate:"required,startswith=k3s"`
-	NewSuffix                     string `json:"new_suffix" validate:"required,startswith=k3s"`
-	ReleaseBranch                 string `json:"release_branch" validate:"required"`
-	Workspace                     string `json:"workspace" validate:"required,dirpath"`
+	OldK8sVersion                 string `json:"old_k8s_version"`
+	NewK8sVersion                 string `json:"new_k8s_version"`
+	OldK8sClient                  string `json:"old_k8s_client"`
+	NewK8sClient                  string `json:"new_k8s_client"`
+	OldSuffix                     string `json:"old_suffix"`
+	NewSuffix                     string `json:"new_suffix"`
+	ReleaseBranch                 string `json:"release_branch"`
+	Workspace                     string `json:"workspace"`
 	NewGoVersion                  string `json:"-"`
-	K3sRepoOwner                  string `json:"k3s_repo_owner" validate:"required"`
-	SystemAgentInstallerRepoOwner string `json:"system_agent_installer_repo_owner" validate:"required"`
-	K8sRancherURL                 string `json:"k8s_rancher_url" validate:"required"`
-	K3sUpstreamURL                string `json:"k3s_upstream_url" validate:"required"`
+	K3sRepoOwner                  string `json:"k3s_repo_owner"`
+	SystemAgentInstallerRepoOwner string `json:"system_agent_installer_repo_owner"`
+	K8sRancherURL                 string `json:"k8s_rancher_url"`
+	K3sUpstreamURL                string `json:"k3s_upstream_url"`
 	DryRun                        bool   `json:"dry_run"`
 }
 
 // RancherRelease
 type RancherRelease struct {
-	ReleaseBranch    string `json:"release_branch" validate:"required"`
-	RancherRepoOwner string `json:"rancher_repo_owner" validate:"required"`
+	ReleaseBranch    string `json:"release_branch"`
+	RancherRepoOwner string `json:"rancher_repo_owner"`
 }
 
 // RKE2
@@ -42,32 +40,32 @@ type RKE2 struct {
 
 // ChartsRelease
 type ChartsRelease struct {
-	Workspace     string   `json:"workspace" validate:"required,dirpath"`
-	ChartsRepoURL string   `json:"charts_repo_url" validate:"required"`
-	ChartsForkURL string   `json:"charts_fork_url" validate:"required"`
-	BranchLines   []string `json:"branch_lines" validate:"required"`
+	Workspace     string   `json:"workspace"`
+	ChartsRepoURL string   `json:"charts_repo_url"`
+	ChartsForkURL string   `json:"charts_fork_url"`
+	BranchLines   []string `json:"branch_lines"`
 }
 
 // User
 type User struct {
-	Email          string `json:"email" validate:"required,email"`
-	GithubUsername string `json:"github_username" validate:"required"`
+	Email          string `json:"email"`
+	GithubUsername string `json:"github_username"`
 }
 
 // K3s
 type K3s struct {
-	Versions map[string]K3sRelease `json:"versions" validate:"dive,omitempty"`
+	Versions map[string]K3sRelease `json:"versions"`
 }
 
 // Rancher
 type Rancher struct {
-	Versions map[string]RancherRelease `json:"versions" validate:"dive,omitempty"`
+	Versions map[string]RancherRelease `json:"versions"`
 }
 
 // Auth
 type Auth struct {
 	GithubToken        string `json:"github_token"`
-	SSHKeyPath         string `json:"ssh_key_path" validate:"filepath"`
+	SSHKeyPath         string `json:"ssh_key_path"`
 	AWSAccessKeyID     string `json:"aws_access_key_id"`
 	AWSSecretAccessKey string `json:"aws_secret_access_key"`
 	AWSSessionToken    string `json:"aws_session_token"`
@@ -77,10 +75,10 @@ type Auth struct {
 // Config
 type Config struct {
 	User    *User          `json:"user"`
-	K3s     *K3s           `json:"k3s" validate:"omitempty"`
-	Rancher *Rancher       `json:"rancher" validate:"omitempty"`
-	RKE2    *RKE2          `json:"rke2" validate:"omitempty"`
-	Charts  *ChartsRelease `json:"charts" validate:"omitempty"`
+	K3s     *K3s           `json:"k3s"`
+	Rancher *Rancher       `json:"rancher"`
+	RKE2    *RKE2          `json:"rke2"`
+	Charts  *ChartsRelease `json:"charts"`
 	Auth    *Auth          `json:"auth"`
 }
 
@@ -192,10 +190,6 @@ func View(config *Config) error {
 	}
 
 	return tmp.Execute(os.Stdout, config)
-}
-
-func (c *Config) Validate() error {
-	return validator.New(validator.WithRequiredStructEnabled()).Struct(c)
 }
 
 const configViewTemplate = `Release config
